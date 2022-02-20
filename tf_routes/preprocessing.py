@@ -1,40 +1,15 @@
 import rdkit
-
 from rdkit import Chem
-from rdkit.Chem.Draw import IPythonConsole
-from rdkit.Chem import MCS
 from rdkit.Chem import rdFMCS
-from rdkit.Chem import Draw
-from rdkit.Chem import *
-IPythonConsole.ipython_useSVG=False  
-
-import os
-from os import listdir
-from os.path import isfile, join
-
-from PIL import Image, ImageDraw, ImageFont
-import PIL
-
-import numpy as np
-from IPython.display import Image 
-import math
-
-from copy import deepcopy
-
-from rdkit.Chem import AllChem, Draw, rdFMCS
-from rdkit.Chem.Draw import rdMolDraw2D
-from rdkit.Chem.Draw import IPythonConsole
-
-from IPython.display import SVG
-
-import time
-
+import rdkit.Chem.rdmolfiles
+from rdkit.Chem.rdmolfiles import MolFragmentToCXSmarts
 import networkx as nx
 import logging
 logger = logging.getLogger(__name__)
 
-# # General function for finding the common core of two molecules, creating dictionaries, converting rdkit-mol to networkx-graph etc. 
-# #### create additional dictionaries/properties for a mol object (the goal is identity between the mol-objects of the notebook and Transformato):
+"""
+General function for finding the common core of two molecules, creating dictionaries, converting rdkit-mol to networkx-graph etc. 
+"""
 
 def generate_apply_dicts(
     mol
@@ -87,6 +62,13 @@ def generate_apply_dicts(
 
 
 def mol_to_nx(mol):
+    """  
+    function for converting rdkit-mol object to networkx-graph object 
+    without creating weights
+    therefore not used for new mutation algorithms (only for comparison with old dfs-algorithm)
+    ----
+    returns a nx-graph-object
+    """
     G = nx.Graph()
 
     for atom in mol.GetAtoms():
@@ -104,10 +86,16 @@ def mol_to_nx(mol):
 
 
 def _mol_to_nx_full(mol):
+    """  
+    function for converting rdkit-mol object to networkx-graph object 
+    without creating weights
+    therefore not used for new mutation algorithms (only for comparison with old dfs-algorithm)
+    several further attributes are added to get same representation in networkx as for the original Transformato-dfs-mutation-algorithm (solely for comparison)
+    ----
+    returns a nx-graph-object
+    """
     G = nx.Graph()
 
-
-    #to get same representation in networkx as in Transformato (copied from mutate.py)
     atoms = mol.GetNumAtoms()
     for idx in range(atoms):
         mol.GetAtomWithIdx(idx).SetProp(
@@ -151,8 +139,14 @@ def _mol_to_nx_full(mol):
     return G
 
 
-#also weights are added (necessary for new mutation algorithms)
 def _mol_to_nx_full_weight(mol, indiv_atom_weights=False, atom_weights={'N': 50, 'C': 50}):
+    """  
+    function for converting rdkit-mol object to networkx-graph object 
+    also weights are added (necessary for new mutation algorithms)
+    ----
+    returns a nx-graph-object with weight attribute
+    """
+
     G = nx.Graph()
 
 
@@ -213,9 +207,12 @@ def _mol_to_nx_full_weight(mol, indiv_atom_weights=False, atom_weights={'N': 50,
         )
     return G
 
-# ## get the common core of two molecules (rdkit-mols)
 
 def get_common_core(mol1, mol2):
+    """
+    get the common core of two molecules (rdkit-mols)
+    """
+
     mols = [mol1, mol2]
     
     res=rdFMCS.FindMCS(mols, ringMatchesRingOnly = True, completeRingsOnly = True, ringCompare=rdkit.Chem.rdFMCS.RingCompare.StrictRingFusion )    
@@ -223,7 +220,7 @@ def get_common_core(mol1, mol2):
     #res=rdFMCS.FindMCS(mols, ringMatchesRingOnly = True, completeRingsOnly = True )    
 
     
-    ccore = MolFragmentToCXSmiles(mol1, mol1.GetSubstructMatch(substructure), kekuleSmiles = True, isomericSmiles=False)
+    ccore = Chem.rdmolfiles.MolFragmentToCXSmiles(mol1, mol1.GetSubstructMatch(substructure), kekuleSmiles = True, isomericSmiles=False)
     ccoremol = Chem.MolFromSmiles(ccore)
     
     hit_ats1 = mol1.GetSubstructMatch(substructure)
@@ -248,12 +245,16 @@ def get_common_core(mol1, mol2):
     return mol1coreindex, mol2coreindex, hit_ats1, hit_ats2
     
 
-# ## functions prior to the mutation route step: find connected dummy regions and terminal atoms, etc.
-# ### mostly from Transformato, however slightly modified (especially no reference to proposed_mutation_route and systemstructure objects)
 
 def _find_connected_dummy_regions_mol(mol, ccore, G):
+    """
+    find connected dummy regions
+    ---
+    mol: rdkit-mol of molecule
+    ccore: previously computed ccore for molecule
+    G: networkx-Graph representation of molecule
+    """
 
- 
     sub=ccore
     G_dummy = G.copy()
     
@@ -297,7 +298,6 @@ def _find_connected_dummy_regions_mol(mol, ccore, G):
 def _find_terminal_atom(cc_idx, mol):
     """
     Find atoms that connect the molecule to the common core.
-
     Args:
         cc_idx (list): common core index atoms
         mol ([type]): rdkit mol object
@@ -328,12 +328,9 @@ def _find_terminal_atom(cc_idx, mol):
 
  
 def _match_terminal_real_and_dummy_atoms(mol, real_atoms_cc, dummy_atoms_cc):
-#      mol, real_atoms_cc: list, dummy_atoms_cc: list
-#   ) -> dict:
     """
     Matches the terminal real and dummy atoms and returns a dict with real atom idx as key and a set of dummy atoms that connect
     to this real atom as a set
-
     Parameters
     ----------
     mol : [Chem.Mol]
@@ -362,19 +359,17 @@ def _match_terminal_real_and_dummy_atoms(mol, real_atoms_cc, dummy_atoms_cc):
 
     return real_atom_match_dummy_atom
 
-    
-# ###  fully new function: again check for connected components after matching real and dummy atoms (only necessary for pathological cases where two atoms of the same component are connected to the common core)
-# 
-
  
 def reduce_terminal(match_terminal_atoms, subg, G_dummy):
-    #new: again check for connected components (only necessary for pathological cases where two atoms of the same component are connected to the common core)
-    from networkx.algorithms.components import connected_components
-
+    """
+    again check for connected components after matching real and dummy atoms 
+    if atom appears in multiple components, remove one of the connections
+    (only necessary for pathological/illegal cases where two atoms of the same component are connected to the common core therefore should not be used in regular workflow)
+    """
     coreconnectingnodes = []
     
     for nodes in match_terminal_atoms.values():
-        aequinodes = []
+         
      
         for node in nodes:
             coreconnectingnodes.append(node)
@@ -388,14 +383,31 @@ def reduce_terminal(match_terminal_atoms, subg, G_dummy):
                     if (nx.has_path(G_dummy,coreconnectingnodes[i],coreconnectingnodes[j])):
                        
                         nodes.remove(coreconnectingnodes[i])
+     
                                   
         coreconnectingnodes = []
     
+    aequinodes = []
+
+    for nodes in match_terminal_atoms.values():
+        for node in nodes:
+            aequinodes.append(node)
+    
+    removenodes = []
+    for i in range(len(aequinodes)):
+        for j in range(len(aequinodes)):
+            if (i != j):
+                for elem in subg:
+                    if aequinodes[i] in elem and aequinodes[j] in elem:
+                        if aequinodes[i] not in removenodes and aequinodes[j] not in removenodes:
+                            removenodes.append(aequinodes[i])
+
+
+    for removenode in removenodes:
+
+        match_terminal_atoms = {k: v for k, v in match_terminal_atoms.items() if removenode not in v}
+
+
     return match_terminal_atoms
 
- 
-def nxgraph(G):
-    mol_attr = nx.get_node_attributes(G, 'atom_index_type')
-    #nx.draw(G, with_labels = True)
-    nx.draw(G, labels=mol_attr)
 

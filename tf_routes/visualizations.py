@@ -1,33 +1,17 @@
 import rdkit
 from rdkit import Chem
 from rdkit.Chem.Draw import IPythonConsole
-from rdkit.Chem import MCS
-from rdkit.Chem import rdFMCS
 from rdkit.Chem import Draw
-from rdkit.Chem import *
 IPythonConsole.ipython_useSVG=False  
-import os
-from os import listdir
-from os.path import isfile, join
-from PIL import Image, ImageDraw, ImageFont
-import PIL
-import numpy as np
-from IPython.display import Image 
-import math
 from copy import deepcopy
-from rdkit.Chem import AllChem, Draw, rdFMCS
+from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Chem.Draw import IPythonConsole
-from IPython.display import SVG
-import time
-import networkx as nx
+from colorsys import hls_to_rgb
 import logging
+
 logger = logging.getLogger(__name__)
 
-from colorsys import hls_to_rgb
-
-    
-# ### function for drawing the molecule with color gradient for mutation order
 
 def _show_common_core_gradient( mol, highlight, mutationl, percomponent = False, numbers = False):
     
@@ -133,14 +117,14 @@ def _show_common_core_gradient( mol, highlight, mutationl, percomponent = False,
 
     return svg
 
-    
-# ## almost identical to function above, used for creating visualizations to write in files 
 
  
 def _show_common_core_gradient_write( mol, highlight, mutationl, percomponent = False):
    
 
     """
+    almost identical to _show_common_core_gradient_write, used for creating visualizations to write in files 
+
     Draw the molecule with color gradient for mutation order
     
     highlight: list indicating the ccore, fct highlights the common core in black
@@ -228,10 +212,13 @@ def _show_common_core_gradient_write( mol, highlight, mutationl, percomponent = 
     return svg, img
 
 
-    
-# ## animated visualization
+
  
 def animated_visualization_3d_v1(mol, mutationl, ccoremol, hits):
+    """
+    animated visualization using py3Dmol
+    """
+    
     import time
     import py3Dmol
     ccoremol
@@ -292,6 +279,11 @@ def animated_visualization_3d_v1(mol, mutationl, ccoremol, hits):
 
  
 def animated_visualization_3d_v2(mol, mutationl, ccoremol, hits):
+    """
+    animated visualization using py3Dmol
+    common core molecules are visualized as spheres
+    """
+
     import time
     import py3Dmol
     from rdkit.Chem import TemplateAlign
@@ -386,11 +378,12 @@ def animated_visualization_3d_v2(mol, mutationl, ccoremol, hits):
         time.sleep(1)
 
 
-    
-# ### converting files to appropriate format for writing in file
-
  
 def convertgraphics(img1, img2):
+    """
+    converting files to appropriate format for writing in file
+    """
+
     from cairosvg import svg2png
     from io import BytesIO
     imgn1 = svg2png(img1)

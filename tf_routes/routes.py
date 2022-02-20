@@ -1,40 +1,22 @@
 import rdkit
-from rdkit import Chem
-from rdkit.Chem.Draw import IPythonConsole
-from rdkit.Chem import MCS
-from rdkit.Chem import rdFMCS
-from rdkit.Chem import Draw
-from rdkit.Chem import *
-IPythonConsole.ipython_useSVG=False  
-import os
-from os import listdir
-from os.path import isfile, join
-from PIL import Image, ImageDraw, ImageFont
-import PIL
-import numpy as np
-from IPython.display import Image 
-from rdkit.Chem import AllChem, Draw, rdFMCS
-from rdkit.Chem.Draw import rdMolDraw2D
-from rdkit.Chem.Draw import IPythonConsole
-import math
-from copy import deepcopy
-from IPython.display import SVG
-import time
 import networkx as nx
 import logging
 logger = logging.getLogger(__name__)
 
-
-# ## 4 different functions for calculating mutations (_calculate_order_of_LJ_mutations, _calculate_order_of_LJ_mutations_new, _calculate_order_of_LJ_mutations_iter and _calculate_order_of_LJ_mutations_iter_change):
-# ### _calculate_order_of_LJ_mutations: naive dfs (as currently in transformato)
-# ### _calculate_order_of_LJ_mutations_new: bfs/djikstra-algorithm applied once for route
-# ### _calculate_order_of_LJ_mutations_new_iter: bfs/djikstra-algorithm applied iteratively, i.e. after each removal of an atom 
-# ### _calculate_order_of_LJ_mutations_new_iter: works iteratively, i.e. after each removal of an atom, algorithm is chosen depending on current state
-
+"""
+4 different functions for calculating mutations (_calculate_order_of_LJ_mutations, _calculate_order_of_LJ_mutations_new, _calculate_order_of_LJ_mutations_iter and _calculate_order_of_LJ_mutations_iter_change):
+_calculate_order_of_LJ_mutations: naive dfs (as currently in transformato)
+_calculate_order_of_LJ_mutations_new: bfs/djikstra-algorithm applied once for route
+_calculate_order_of_LJ_mutations_new_iter: bfs/djikstra-algorithm applied iteratively, i.e. after each removal of an atom 
+_calculate_order_of_LJ_mutations_new_iter_change: works iteratively, i.e. after each removal of an atom, algorithm is chosen depending on current state
+"""
  
 def _calculate_order_of_LJ_mutations(
     connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph
 ) -> list:
+    """
+    dfs mutation algorithm (as currently in transformato)
+    """
 
     ordered_LJ_mutations = []
     for real_atom in match_terminal_atoms:
@@ -56,11 +38,9 @@ def _calculate_order_of_LJ_mutations(
                 root = dummy_atom
 
                 edges = list(nx.dfs_edges(G_dummy, source=root))
-               #     logger.info("edges")
-               #     logger.info(edges)
+       
                 nodes = [root] + [v for u, v in edges]
-              #    logger.info("nodes")
-              #    logger.info(nodes)
+         
                 nodes.reverse()  # NOTE: reverse the mutation
                 ordered_LJ_mutations.append(nodes)
 
@@ -70,6 +50,10 @@ def _calculate_order_of_LJ_mutations(
 def _calculate_order_of_LJ_mutations_new(
     connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercycles=True
 ) -> list:
+    """
+    bfs/djikstra-algorithm applied once for route (without iterations)
+    """
+
 
     ordered_LJ_mutations = []
     
@@ -102,17 +86,17 @@ def _calculate_order_of_LJ_mutations_new(
                         
                 #dijkstra          
                 ssource = nx.single_source_dijkstra(G_dummy, source=root, weight='weight')
-     
+                #result of dijkstra algorithm is sorted
                 sortedssource = {k: v for k, v in sorted(ssource[0].items(), key=lambda item: item[1])}   
-    
-                max_node = max(ssource[0], key=ssource[0].get)
-                      
+
+                #get keys of sorted dict    
                 sortedssource_edges = sortedssource.keys()
 
                 sortedssource_edges_list = list(sortedssource_edges)
-                 
+                #sorted list contains the mutation route
                 nodes = sortedssource_edges_list
             
+                #order has to be reversed - the most distant atom is the first to be removed
                 nodes.reverse()  
                 
                 #sort nodes according to degree, cycle participation and removal order
@@ -130,7 +114,10 @@ def _calculate_order_of_LJ_mutations_new(
 def _calculate_order_of_LJ_mutations_new_iter(
     connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercheck=True
 ) -> list:
-
+    """
+    bfs/djikstra-algorithm applied iteratively, i.e. after each removal of an atom 
+    """
+    
     ordered_LJ_mutations = []
     
     for real_atom in match_terminal_atoms:
@@ -172,23 +159,25 @@ def _calculate_order_of_LJ_mutations_new_iter(
                     
                     #dijkstra    
                     ssource = nx.single_source_dijkstra(G_dummy, source=root, weight='weight')
-
-                    sortedssource = {k: v for k, v in sorted(ssource[0].items(), key=lambda item: item[1])}
+                  
+                    #find node with maximum distance - i.e next to be removed 
                     max_node = max(ssource[0], key=ssource[0].get)
             
+                    #the currently most distant node is added to the final order - it is the next to be removed
                     final_order.extend([max_node])
                     
                     
                     #restore original weights
                     G_dummy = G_origweights
                     
-                    #remove G_dummy
+                    #remove the most distant node (after added to the final_order-array); the next iteration will find the most distant node of the reduced graph
                     G_dummy.remove_node(max_node)
                     
                     #add to removeG
                     removeG.add_node(max_node)
                     removearray.append(max_node)
                     
+                    #final_order contains mutation order for current dummy region
                     sortedssource_edges = final_order
                     
               
@@ -209,6 +198,9 @@ def _calculate_order_of_LJ_mutations_new_iter(
 def _calculate_order_of_LJ_mutations_new_iter_change(
     connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercheck=True
 ) -> list:
+    """
+    works iteratively, i.e. after each removal of an atom, algorithm is chosen depending on current state
+    """
 
     ordered_LJ_mutations = []
 
@@ -237,6 +229,7 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                 # root is the dummy atom that connects the real region with the dummy region
                 root = dummy_atom
 
+                #these variables will be changed accordingly to the current position (i.e. the last removed node) in the graph
                 dfs_step = False
                 cycle_step = False
                 cycle_step_initialized = False
@@ -260,7 +253,7 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                     if (cyclecheck == True):
                         G_dummy = cycle_checks_nx(G_dummy)
                         
-
+                    #if the last removed node is neither part of a longer chain nor of a cycle, an usual dijkstra step is carried out
                     if (dfs_step == False and cycle_step == False):
                         #logger.info("dijkstra step")               
                         #dijkstra    
@@ -273,14 +266,13 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                         
                         neighbors = [n for n in G_dummy.neighbors(max_node)]
                         
+                        #the current neighbor is determined
                         if (current_degree > 0):
                             current_neighbor = neighbors[0]
                         else:
                             current_neighbor = None
-                            
-                       
-                                    
-                        
+                                      
+                        #the type of the next iteration is determined
                         if (current_neighbor != None):
                             if (initial_cdict[max_node] == 0 and current_degree == 1 and G_dummy.degree(current_neighbor) == 2):                     
                                 dfs_step = True
@@ -304,6 +296,9 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                             if (current_neighbor == root):
                                 dfs_step = False
                     
+                    #if the current position is within a cycle, a cycle_step is carried out
+                    #neighbours within the cycle are determined and, if possible, removed
+                    #it is not possible if the cycle atoms still have other bonds -> switch to dijkstra
                     elif (cycle_step == True):
                         #logger.info("cycle step")
                         if (cycle_step_initialized == False):
@@ -396,7 +391,7 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                             dfs_step = False
                             cycle_step = False
                             cycle_step_initialized = False
-                            #restore
+                            
                             G_dummy = G_origweights.copy()
                             continue
                                         
@@ -420,7 +415,7 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                                 cycle_step_initialized = False
                                 continue
                         if (illegal_root_cycle == True):
-                            #restore
+                            
                             G_dummy = G_origweights.copy()
                             continue
                                 
@@ -432,7 +427,8 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                             cycle_step = False
                             cycle_step_initialized = False
                         
-  
+                    #if neither the conditions for a cycle_step are met nor the dijkstra algorithm has to be applied -> the current position is within a chain
+                    #a dfs step is carried out
                     else:
                         #logger.info("dfs step")
                         max_node = current_neighbor
@@ -466,7 +462,8 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                         G_dummy = G_origweights.copy()
                         
                         continue
-                        
+
+                    #the determined node is added to the final array    
                     final_order.extend([max_node])
 
                     G_dummy = G_origweights.copy()
@@ -496,17 +493,17 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
 
     return ordered_LJ_mutations
 
-    
-# ### additional functions for the new mutation route algorithms (using weight updates, cycle and degree functions of networkx): process cycles (atoms participating in many cycles are removed later) and 'preferential removal' (atoms which neighbours already have been removed are removed earlier)
-
  
-#cycle processing, currently used in _calculate_order_of_LJ_mutations_new_iter 
 def cycle_checks_nx(G):
+    """
+    cycle processing, currently used in _calculate_order_of_LJ_mutations_new_iter
+    --------
+    returns nx-graph-object with updated weights (according to cycle participation of the atom)
+    """
     
     #search cycles using networkx
     cycles = nx.cycle_basis(G)
     
-    import collections
     from collections import Counter
     
     cdict = Counter(x for xs in cycles for x in set(xs))
@@ -521,8 +518,14 @@ def cycle_checks_nx(G):
     return G
 
  
-#preferential removal, currently used in _calculate_order_of_LJ_mutations_new_iter 
 def order_checks_nx(G, removearray, G_total):
+    """
+    preferential removal (atoms which neighbours already have been removed are removed earlier), currently used in _calculate_order_of_LJ_mutations_new_iter 
+    ------
+    returns nx-graph-object with updated weights (according to removearray)
+    """
+
+
     if (len(removearray) > 0):
         lastremoved = removearray[len(removearray) - 1]
         
@@ -549,9 +552,12 @@ def order_checks_nx(G, removearray, G_total):
     return G
 
  
-#cycle processing dictionary and degree dictionary for preferential removal, currently used in _calculate_order_of_LJ_mutations_new (via change_route_cycles)
 def cycle_checks(G):
-    
+    """
+    cycle processing dictionary and degree dictionary for preferential removal (atoms which neighbours already have been removed are removed earlier), currently used in _calculate_order_of_LJ_mutations_new (via change_route_cycles)
+    ----
+    returns dictionary containing number of cycle participation (cdict) and dict containing degree of atom (degreedict)
+    """
     
     #search cycles using networkx
     cycles = nx.cycle_basis(G)
@@ -576,11 +582,21 @@ def cycle_checks(G):
     
     return cdict, degreedict
 
- 
-#currently used in _calculate_order_of_LJ_mutations_new
-#preliminary mutation is list is sorted using cycle and degree dictionary
-def change_route_cycles(route, cycledict, degreedict, weightdict, G):
 
+def change_route_cycles(route, cycledict, degreedict, weightdict, G):
+    """
+    preliminary mutation list is sorted using cycle and degree dictionary
+    currently used in _calculate_order_of_LJ_mutations_new
+    ----
+    Args:
+        route: original mutation route
+        cycledict: dict of cycle participation of atoms
+        degreedict: dict of  degree of atoms
+        weightdict: dict of  weight of atoms
+        G: nx-graph of molecule
+    ----
+    returns reordered array of the mutation route
+    """
     
     for i in range(len(route)-1):
         routedict = route[i]
