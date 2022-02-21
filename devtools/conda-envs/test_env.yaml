@@ -1,10 +1,12 @@
 name: test
 channels:
-
+  - conda-forge
   - defaults
 dependencies:
     # Base depends
   - python
+  - rdkit
+  - networkx
   - pip
 
     # Testing
