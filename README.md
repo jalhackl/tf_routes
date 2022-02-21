@@ -1,8 +1,8 @@
 tf_routes
 ==============================
 [//]: # (Badges)
-[![GitHub Actions Build Status](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/tf_routes/workflows/CI/badge.svg)](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/tf_routes/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/tf_routes/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/tf_routes/branch/master)
+[![GitHub Actions Build Status](https://github.com/jalhackl/tf_routes/workflows/CI/badge.svg)](https://github.com/jalhackl/tf_routes/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/jalhackl/tf_routes/branch/master/graph/badge.svg)](https://codecov.io/gh/jalhackl/tf_routes/branch/master)
 
 
 # Mutation Routes for Transformato
