@@ -5,9 +5,9 @@ channels:
 dependencies:
     # Base depends
   - python
+  - pip
   - rdkit
   - networkx
-  - pip
 
     # Testing
   - pytest
