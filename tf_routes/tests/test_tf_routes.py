@@ -5,16 +5,12 @@ Unit and regression test for the tf_routes package.
 # Import package, test suite, and other packages as needed
 import random
 import sys
-import rdkit
 from rdkit import Chem
-import pytest
 from copy import deepcopy
 import networkx as nx
 
-import tf_routes
 from tf_routes import preprocessing
 from tf_routes import routes
-from tf_routes import visualizations
 
 
 

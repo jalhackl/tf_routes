@@ -1,10 +1,9 @@
+import logging
+
+import networkx as nx
 import rdkit
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
-import rdkit.Chem.rdmolfiles
-from rdkit.Chem.rdmolfiles import MolFragmentToCXSmarts
-import networkx as nx
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +129,7 @@ def _mol_to_nx_full(mol):
 
 
 def _mol_to_nx_full_weight(
-    mol, indiv_atom_weights=False, atom_weights={"N": 50, "C": 50}
+    mol, indiv_atom_weights: bool = False, atom_weights: dict = {"N": 50, "C": 50}
 ):
     """
     function for converting rdkit-mol object to networkx-graph object
@@ -235,7 +234,7 @@ def get_common_core(mol1, mol2):
     return mol1coreindex, mol2coreindex, hit_ats1, hit_ats2
 
 
-def _find_connected_dummy_regions_mol(mol, ccore, G):
+def _find_connected_dummy_regions_mol(mol, ccore, G: nx.Graph):
     """
     find connected dummy regions
     ---
@@ -283,7 +282,7 @@ def _find_connected_dummy_regions_mol(mol, ccore, G):
     return unique_subgraphs, G_dummy
 
 
-def _find_terminal_atom(cc_idx, mol):
+def _find_terminal_atom(cc_idx: int, mol):
     """
     Find atoms that connect the molecule to the common core.
     Args:
@@ -315,7 +314,9 @@ def _find_terminal_atom(cc_idx, mol):
     return (list(set(terminal_dummy_atoms)), list(set(terminal_real_atoms)))
 
 
-def _match_terminal_real_and_dummy_atoms(mol, real_atoms_cc, dummy_atoms_cc):
+def _match_terminal_real_and_dummy_atoms(
+    mol, real_atoms_cc: list, dummy_atoms_cc: list
+):
     """
     Matches the terminal real and dummy atoms and returns a dict with real atom idx as key and a set of dummy atoms that connect
     to this real atom as a set
@@ -347,7 +348,7 @@ def _match_terminal_real_and_dummy_atoms(mol, real_atoms_cc, dummy_atoms_cc):
     return real_atom_match_dummy_atom
 
 
-def reduce_terminal(match_terminal_atoms, subg, G_dummy):
+def reduce_terminal(match_terminal_atoms: dict, subg, G_dummy: nx.Graph):
     """
     again check for connected components after matching real and dummy atoms
     if atom appears in multiple components, remove one of the connections

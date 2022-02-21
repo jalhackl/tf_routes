@@ -1,7 +1,6 @@
 import logging
 
 import networkx as nx
-import rdkit
 
 logger = logging.getLogger(__name__)
 
