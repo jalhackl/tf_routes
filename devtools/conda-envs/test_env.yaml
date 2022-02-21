@@ -8,6 +8,7 @@ dependencies:
   - pip
   - rdkit
   - networkx
+  - ipython
 
     # Testing
   - pytest
