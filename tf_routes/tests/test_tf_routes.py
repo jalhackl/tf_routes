@@ -363,6 +363,208 @@ def test_cycle_checks_nx():
         key2 = cdict_ethane[i[1]]    
         assert (i[2]['weight'] == maxweight - diff_weights *  (key1 + key2))
 
+def test_cycle_checks_nx_v2():
+   
+    cholesterol = "CC(C)CCCC(C)C1CCC2C1(CCC3C2CC=C4C3(CCC(C4)O)C)C"
+    cortisol = "CC12CCC(=O)C=C1CCC3C2C(CC4(C3CCC4(C(=O)CO)O)C)O"  
+    toluene = "CC1=CC=CC=C1"
+    ethane = "CC"  
+
+    mol1 = Chem.MolFromSmiles(cholesterol)
+    mol2 = Chem.MolFromSmiles(cortisol)
+    mol3 = Chem.MolFromSmiles(toluene)
+    mol4 = Chem.MolFromSmiles(ethane)
+
+
+    mol1 = preprocessing.generate_apply_dicts(mol1)
+    mol2 = preprocessing.generate_apply_dicts(mol2)
+    mol3 = preprocessing.generate_apply_dicts(mol3)
+    mol4 = preprocessing.generate_apply_dicts(mol4)
+
+    graphmol1 = preprocessing._mol_to_nx_full_weight(mol1)
+    graphmol2 = preprocessing._mol_to_nx_full_weight(mol2)
+    graphmol3 = preprocessing._mol_to_nx_full_weight(mol3)
+    graphmol4 = preprocessing._mol_to_nx_full_weight(mol4)
+
+    
+    cdict_cholesterol, degree_cholesterol = routes.cycle_checks(graphmol1)
+    cdict_cortisol, degree_cortisol = routes.cycle_checks(graphmol2)
+    cdict_toluene, degree_toluene = routes.cycle_checks(graphmol3)
+    cdict_ethane, degree_ethane = routes.cycle_checks(graphmol4)
+  
+    from collections import Counter
+
+    countercholesterol = Counter(cdict_cholesterol.values()).most_common()
+    countercholesterol = dict(countercholesterol)
+
+    countercortisol = Counter(cdict_cortisol.values()).most_common()
+    countercortisol = dict(countercortisol)
+
+    countertoluene = Counter(cdict_toluene.values()).most_common()
+    countertoluene = dict(countertoluene)
+
+    counterethane = Counter(cdict_ethane.values()).most_common()
+    counterethane = dict(counterethane)
+
+    #check if the number of atoms with a specific cycle participation is correct
+
+    for key, value in countercholesterol.items():
+        if (key == 1):
+            assert (value == 11)
+        if (key == 2):
+            assert (value == 6)
+        assert(key < 3)
+    
+    for key, value in countercortisol.items():
+        if (key == 1):
+            assert (value == 11)
+        if (key == 2):
+            assert (value == 6)
+        assert(key < 3)
+
+    keys = [0, 1, 2, 3]
+
+    for key, value in countertoluene.items():
+        if (key == 1):
+            assert (value == 6)
+        if (key == 0):
+            assert (value == 1)
+        assert (key < 2)
+    
+    
+
+    for key, value in counterethane.items():
+        assert (key < 1)
+
+
+    graph_cholesterol = routes.cycle_checks_nx_v2(graphmol1)
+    
+
+    #check if the update of weights according to cycle participation is correct
+    
+    maxweight = 50
+
+    present_weights = set()
+    for i in graph_cholesterol.edges.data():      
+        present_weights.add(i[2]['weight'])  
+    present_weights = sorted(present_weights)
+    
+
+    for i in graph_cholesterol.edges.data():
+       
+        key1 = cdict_cholesterol[i[0]]    
+        key2 = cdict_cholesterol[i[1]]    
+        degree1 = degree_cholesterol[i[0]]  
+        degree2 = degree_cholesterol[i[1]]  
+        newweight = maxweight
+
+        if key1 == 1:
+            newweight = newweight - 35 / degree1 
+        if key2 == 1:
+            newweight = newweight - 35 / degree2 
+        if key1 > 1:
+            newweight = newweight - 35 / degree1 - key1*2/degree1
+        if key2 > 1:
+            newweight = newweight - 35 / degree2 - key2*2/degree2
+
+        assert (round(i[2]['weight'], 4) == round(newweight, 4))
+
+
+    graph_cortisol = routes.cycle_checks_nx_v2(graphmol2)
+    graph_toluene = routes.cycle_checks_nx_v2(graphmol3)
+    graph_ethane = routes.cycle_checks_nx_v2(graphmol4)
+
+
+  
+
+    present_weights = set()
+    for i in graph_cortisol.edges.data():      
+        present_weights.add(i[2]['weight'])  
+    present_weights = sorted(present_weights)
+
+
+    for i in graph_cortisol.edges.data():
+       
+        key1 = cdict_cortisol[i[0]]    
+        key2 = cdict_cortisol[i[1]]    
+
+        degree1 = degree_cortisol[i[0]]  
+        degree2 = degree_cortisol[i[1]]  
+
+        newweight = maxweight
+
+        if key1 == 1:
+            newweight = newweight - 35 / degree1 
+        if key2 == 1:
+            newweight = newweight - 35 / degree2 
+        if key1 > 1:
+            newweight = newweight - 35 / degree1 - key1*2/degree1
+        if key2 > 1:
+            newweight = newweight - 35 / degree2 - key2*2/degree2
+
+        assert (round(i[2]['weight'], 4) == round(newweight, 4))
+    
+
+
+  
+
+
+    present_weights = set()
+    for i in graph_toluene.edges.data():      
+        present_weights.add(i[2]['weight'])  
+    present_weights = sorted(present_weights)
+ 
+
+    for i in graph_toluene.edges.data():
+       
+        key1 = cdict_toluene[i[0]]    
+        key2 = cdict_toluene[i[1]]    
+
+        degree1 = degree_toluene[i[0]]  
+        degree2 = degree_toluene[i[1]]  
+
+        newweight = maxweight
+
+        if key1 == 1:
+            newweight = newweight - 35 / degree1 
+        if key2 == 1:
+            newweight = newweight - 35 / degree2 
+        if key1 > 1:
+            newweight = newweight - 35 / degree1 - key1*2/degree1
+        if key2 > 1:
+            newweight = newweight - 35 / degree2 - key2*2/degree2
+
+        assert (round(i[2]['weight'], 4) == round(newweight, 4))
+
+
+
+    present_weights = set()
+    for i in graph_ethane.edges.data():      
+        present_weights.add(i[2]['weight'])  
+    present_weights = sorted(present_weights)
+
+
+    for i in graph_ethane.edges.data():
+       
+        key1 = cdict_ethane[i[0]]    
+        key2 = cdict_ethane[i[1]]    
+
+        degree1 = degree_ethane[i[0]]  
+        degree2 = degree_ethane[i[1]]  
+
+        newweight = maxweight
+
+        if key1 == 1:
+            newweight = newweight - 35 / degree1 
+        if key2 == 1:
+            newweight = newweight - 35 / degree2 
+        if key1 > 1:
+            newweight = newweight - 35 / degree1 - key1*2/degree1
+        if key2 > 1:
+            newweight = newweight - 35 / degree2 - key2*2/degree2
+
+        assert (round(i[2]['weight'], 4) == round(newweight, 4))
+
 
 
 def test_mutations_new_result():
