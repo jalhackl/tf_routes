@@ -12,7 +12,7 @@ General function for finding the common core of two molecules, creating dictiona
 """
 
 
-def generate_apply_dicts(mol):
+def generate_apply_dicts(mol, remove_Hs: bool = True):
     """
     Generate mapping dictionaries for a molecule in a psf.
     Parameters
@@ -22,6 +22,11 @@ def generate_apply_dicts(mol):
     ----------
     dict's
     """
+
+    #removal of all Hs
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
+
 
     atom_idx_to_atom_name = dict()
     atom_name_to_atom_idx = dict()
@@ -55,7 +60,7 @@ def generate_apply_dicts(mol):
 # ### diverse functions for converting rdkit-mol object to networkx-graph object
 
 
-def mol_to_nx(mol):
+def mol_to_nx(mol, remove_Hs: bool = True):
     """
     function for converting rdkit-mol object to networkx-graph object
     without creating weights
@@ -63,6 +68,11 @@ def mol_to_nx(mol):
     ----
     returns a nx-graph-object
     """
+
+    #removal of all Hs
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
+
     G = nx.Graph()
 
     for atom in mol.GetAtoms():
@@ -81,7 +91,7 @@ def mol_to_nx(mol):
     return G
 
 
-def _mol_to_nx_full(mol):
+def _mol_to_nx_full(mol, remove_Hs: bool = True):
     """
     function for converting rdkit-mol object to networkx-graph object
     without creating weights
@@ -90,6 +100,11 @@ def _mol_to_nx_full(mol):
     ----
     returns a nx-graph-object
     """
+
+    #removal of all Hs
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
+
     G = nx.Graph()
 
     atoms = mol.GetNumAtoms()
@@ -129,7 +144,7 @@ def _mol_to_nx_full(mol):
 
 
 def _mol_to_nx_full_weight(
-    mol, indiv_atom_weights: bool = False, atom_weights: dict = {"N": 50, "C": 50}
+    mol, indiv_atom_weights: bool = False, atom_weights: dict = {"N": 50, "C": 50}, remove_Hs: bool = True
 ):
     """
     function for converting rdkit-mol object to networkx-graph object
@@ -137,6 +152,10 @@ def _mol_to_nx_full_weight(
     ----
     returns a nx-graph-object with weight attribute
     """
+
+    #removal of all Hs
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
 
     G = nx.Graph()
 
@@ -190,10 +209,17 @@ def _mol_to_nx_full_weight(
     return G
 
 
-def get_common_core(mol1, mol2):
+def get_common_core(mol1, mol2 , remove_Hs: bool = True):
     """
     get the common core of two molecules (rdkit-mols)
     """
+
+    
+    #removal of all Hs - however in the usual workflow, they should already be removed
+    if remove_Hs == True:
+        mol1 = Chem.rdmolops.RemoveAllHs(mol1)
+        mol2 = Chem.rdmolops.RemoveAllHs(mol2)
+
 
     mols = [mol1, mol2]
 
@@ -234,7 +260,7 @@ def get_common_core(mol1, mol2):
     return mol1coreindex, mol2coreindex, hit_ats1, hit_ats2
 
 
-def _find_connected_dummy_regions_mol(mol, ccore, G: nx.Graph):
+def _find_connected_dummy_regions_mol(mol, ccore, G: nx.Graph , remove_Hs: bool = True):
     """
     find connected dummy regions
     ---
@@ -242,6 +268,10 @@ def _find_connected_dummy_regions_mol(mol, ccore, G: nx.Graph):
     ccore: previously computed ccore for molecule
     G: networkx-Graph representation of molecule
     """
+
+    #removal of all Hs - however in the usual workflow, they should already be removed
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
 
     sub = ccore
     G_dummy = G.copy()
@@ -282,13 +312,18 @@ def _find_connected_dummy_regions_mol(mol, ccore, G: nx.Graph):
     return unique_subgraphs, G_dummy
 
 
-def _find_terminal_atom(cc_idx: int, mol):
+def _find_terminal_atom(cc_idx: int, mol, remove_Hs: bool = True):
     """
     Find atoms that connect the molecule to the common core.
     Args:
         cc_idx (list): common core index atoms
         mol ([type]): rdkit mol object
     """
+
+    #removal of all Hs - however in the usual workflow, they should already be removed
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
+
     terminal_dummy_atoms = []
     terminal_real_atoms = []
 
@@ -315,7 +350,7 @@ def _find_terminal_atom(cc_idx: int, mol):
 
 
 def _match_terminal_real_and_dummy_atoms(
-    mol, real_atoms_cc: list, dummy_atoms_cc: list
+    mol, real_atoms_cc: list, dummy_atoms_cc: list, remove_Hs: bool = True
 ):
     """
     Matches the terminal real and dummy atoms and returns a dict with real atom idx as key and a set of dummy atoms that connect
@@ -334,6 +369,11 @@ def _match_terminal_real_and_dummy_atoms(
     [type]
         [description]
     """
+
+    
+    #removal of all Hs - however in the usual workflow, they should already be removed
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
 
     from collections import defaultdict
 

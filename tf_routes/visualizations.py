@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _show_common_core_gradient(
-    mol, highlight, mutationl, percomponent=False, numbers=False
+    mol, highlight, mutationl, percomponent=False, numbers=False, remove_Hs: bool = True
 ):
 
     """
@@ -30,6 +30,11 @@ def _show_common_core_gradient(
     """
 
     # https://rdkit.blogspot.com/2015/02/new-drawing-code.html
+
+    
+    #removal of all Hs - however in the usual workflow, they should already be removed
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
 
     mol = deepcopy(mol)
     AllChem.Compute2DCoords(mol)
@@ -127,7 +132,7 @@ def _show_common_core_gradient(
     return svg
 
 
-def _show_common_core_gradient_write(mol, highlight, mutationl, percomponent=False):
+def _show_common_core_gradient_write(mol, highlight, mutationl, percomponent=False, remove_Hs: bool = True):
 
     """
     almost identical to _show_common_core_gradient_write, used for creating visualizations to write in files
@@ -143,6 +148,11 @@ def _show_common_core_gradient_write(mol, highlight, mutationl, percomponent=Fal
     numbers: boolean; show also numbers showing the mutation order
     legendtext: string; legend to be placed below molecule
     """
+
+    #removal of all Hs - however in the usual workflow, they should already be removed
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
+
 
     # https://rdkit.blogspot.com/2015/02/new-drawing-code.html
 
@@ -227,7 +237,7 @@ def _show_common_core_gradient_write(mol, highlight, mutationl, percomponent=Fal
     return svg, img
 
 
-def animated_visualization_3d_v1(mol, mutationl, ccoremol, hits):
+def animated_visualization_3d_v1(mol, mutationl, ccoremol, hits, remove_Hs: bool = True):
     """
     animated visualization using py3Dmol
     """
@@ -235,6 +245,10 @@ def animated_visualization_3d_v1(mol, mutationl, ccoremol, hits):
     import time
 
     import py3Dmol
+
+    #removal of all Hs - however in the usual workflow, they should already be removed
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
 
     ccoremol
     ccoretemplate = ccoremol
@@ -287,7 +301,7 @@ def animated_visualization_3d_v1(mol, mutationl, ccoremol, hits):
         time.sleep(1)
 
 
-def animated_visualization_3d_v2(mol, mutationl, ccoremol, hits):
+def animated_visualization_3d_v2(mol, mutationl, ccoremol, hits, remove_Hs: bool = True):
     """
     animated visualization using py3Dmol
     common core molecules are visualized as spheres
@@ -297,6 +311,10 @@ def animated_visualization_3d_v2(mol, mutationl, ccoremol, hits):
 
     import py3Dmol
     from rdkit.Chem import TemplateAlign
+
+    #removal of all Hs - however in the usual workflow, they should already be removed
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
 
     m_match = hits
 

@@ -212,7 +212,7 @@ def _calculate_order_of_LJ_mutations_new_iter(
 
  
 def _calculate_order_of_LJ_mutations_new_iter_change(
-    connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercheck=True
+    connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercheck=True, cyclecheck_v2=True
 ) -> list:
     """
     works iteratively, i.e. after each removal of an atom, algorithm is chosen depending on current state
@@ -269,8 +269,11 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
                     G_origweights = G_dummy.copy()
                     
                     #update weights according to cycle participation
-                    if (cyclecheck == True):
+                    if (cyclecheck == True and cyclecheck_v2 == False):
                         G_dummy = cycle_checks_nx(G_dummy)
+                    elif (cyclecheck == True and cyclecheck_v2 == True):
+                        G_dummy = cycle_checks_nx_v2(G_dummy)
+
                         
                     #if the last removed node is neither part of a longer chain nor of a cycle, an usual dijkstra step is carried out
                     if (dfs_step == False and cycle_step == False):
@@ -513,9 +516,9 @@ def _calculate_order_of_LJ_mutations_new_iter_change(
     return ordered_LJ_mutations
 
  
-def cycle_checks_nx(G):
+def cycle_checks_nx(G, use_actual_weight_for_mod=False):
     """
-    cycle processing, currently used in _calculate_order_of_LJ_mutations_new_iter and ..._new_iter_change
+    cycle processing, can be used in _calculate_order_of_LJ_mutations_new_iter and ..._new_iter_change (default is cycle_checks_nx_v2)
     --------
     returns nx-graph-object with updated weights (according to cycle participation of the atom)
     """
@@ -532,14 +535,17 @@ def cycle_checks_nx(G):
     for i in cdict:
         edg = G.edges(i)
         for el in edg:
-            G[el[0]][el[1]]['weight'] = G[el[0]][el[1]]['weight'] - cdict[i]*5
+            if use_actual_weight_for_mod==True:
+                G[el[0]][el[1]]['weight'] = G[el[0]][el[1]]['weight'] - cdict[i]*(G[el[0]][el[1]]['weight']**(1/2))
+            else:
+                G[el[0]][el[1]]['weight'] = G[el[0]][el[1]]['weight'] - cdict[i]*5
     
     return G
 
 
 def cycle_checks_nx_v2(G):
     """
-    cycle processing, currently used in _calculate_order_of_LJ_mutations_new_iter (if cycle_check_v2 is TRUE) 
+    cycle processing, currently used (default) in _calculate_order_of_LJ_mutations_new_iter and ..._new_iter_change (if cycle_check_v2 is TRUE) 
     in contrast to cycle_checks_nx, the degree of the cyclic nodes is also taken into account
     this modifies / optimizes the route in some cases
     ------
