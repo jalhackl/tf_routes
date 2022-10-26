@@ -4,6 +4,7 @@ import networkx as nx
 import rdkit
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +13,7 @@ General function for finding the common core of two molecules, creating dictiona
 """
 
 
-def generate_apply_dicts(mol, remove_Hs: bool = True):
+def generate_apply_dicts(mol, remove_Hs: bool = False):
     """
     Generate mapping dictionaries for a molecule in a psf.
     Parameters
@@ -60,7 +61,7 @@ def generate_apply_dicts(mol, remove_Hs: bool = True):
 # ### diverse functions for converting rdkit-mol object to networkx-graph object
 
 
-def mol_to_nx(mol, remove_Hs: bool = True):
+def mol_to_nx(mol, remove_Hs: bool = False):
     """
     function for converting rdkit-mol object to networkx-graph object
     without creating weights
@@ -91,7 +92,7 @@ def mol_to_nx(mol, remove_Hs: bool = True):
     return G
 
 
-def _mol_to_nx_full(mol, remove_Hs: bool = True):
+def _mol_to_nx_full(mol, remove_Hs: bool = False):
     """
     function for converting rdkit-mol object to networkx-graph object
     without creating weights
@@ -144,7 +145,7 @@ def _mol_to_nx_full(mol, remove_Hs: bool = True):
 
 
 def _mol_to_nx_full_weight(
-    mol, indiv_atom_weights: bool = False, atom_weights: dict = {"N": 50, "C": 50}, remove_Hs: bool = True
+    mol, indiv_atom_weights: bool = False, atom_weights: dict = {"N": 50, "C": 50}, remove_Hs: bool = False
 ):
     """
     function for converting rdkit-mol object to networkx-graph object
@@ -209,7 +210,7 @@ def _mol_to_nx_full_weight(
     return G
 
 
-def get_common_core(mol1, mol2 , remove_Hs: bool = True):
+def get_common_core(mol1, mol2 , remove_Hs: bool = False, return_ccoremol: bool=False):
     """
     get the common core of two molecules (rdkit-mols)
     """
@@ -257,10 +258,98 @@ def get_common_core(mol1, mol2 , remove_Hs: bool = True):
     mol1coreindex = [hit_ats1]
     mol2coreindex = [hit_ats2]
 
-    return mol1coreindex, mol2coreindex, hit_ats1, hit_ats2
+    if return_ccoremol == True:
+        return mol1coreindex, mol2coreindex, hit_ats1, hit_ats2, ccoremol
+    else:
+        return mol1coreindex, mol2coreindex, hit_ats1, hit_ats2
 
 
-def _find_connected_dummy_regions_mol(mol, ccore, G: nx.Graph , remove_Hs: bool = True):
+def get_common_core_adjustHs(mol1, mol2, return_ccoremol: bool=False ):
+    """
+    get the common core of two molecules (rdkit-mols)
+    """
+
+    mols = [mol1, mol2]
+
+    remmol1 = deepcopy(mol1)
+    remmol2 = deepcopy(mol2)
+    remmol1 = Chem.rdmolops.RemoveAllHs(remmol1)
+    remmol2 = Chem.rdmolops.RemoveAllHs(remmol2)
+
+    remmols = [remmol1, remmol2]
+
+
+
+    res = rdFMCS.FindMCS(
+        remmols,
+        ringMatchesRingOnly=True,
+        completeRingsOnly=True,
+        ringCompare=rdkit.Chem.rdFMCS.RingCompare.StrictRingFusion,
+    )
+    substructure = Chem.MolFromSmarts(res.smartsString)
+    # res=rdFMCS.FindMCS(mols, ringMatchesRingOnly = True, completeRingsOnly = True )
+
+
+    ccore = Chem.rdmolfiles.MolFragmentToCXSmiles(
+        mol1,
+        mol1.GetSubstructMatch(substructure),
+        kekuleSmiles=True,
+        isomericSmiles=False,
+    )
+    ccoremol = Chem.MolFromSmiles(ccore)
+
+    hit_ats1 = mol1.GetSubstructMatch(substructure)
+    hit_bonds1 = []
+    for bond in substructure.GetBonds():
+        aid1 = hit_ats1[bond.GetBeginAtomIdx()]
+        aid2 = hit_ats1[bond.GetEndAtomIdx()]
+        hit_bonds1.append(mol1.GetBondBetweenAtoms(aid1, aid2).GetIdx())
+
+    hit_ats2 = mol2.GetSubstructMatch(substructure)
+    hit_bonds2 = []
+    for bond in substructure.GetBonds():
+        aid1 = hit_ats2[bond.GetBeginAtomIdx()]
+        aid2 = hit_ats2[bond.GetEndAtomIdx()]
+        hit_bonds2.append(mol2.GetBondBetweenAtoms(aid1, aid2).GetIdx())
+
+
+    #new code: add hydrogens to both common-core-on-molecule-projections
+    hit_ats1_compl = set(hit_ats1)
+    hit_ats2_compl = set(hit_ats2)
+
+
+    for indexnr in hit_ats1:
+            atom = mol1.GetAtomWithIdx(indexnr)
+            for x in atom.GetNeighbors():
+                if x.GetSymbol() == "H":
+                    hit_ats1_compl.add(x.GetIdx())
+
+    
+    hit_ats1 = tuple(hit_ats1_compl)
+
+
+    for indexnr in hit_ats2:
+        atom = mol2.GetAtomWithIdx(indexnr)
+        for x in atom.GetNeighbors():
+            if x.GetSymbol() == "H":
+                hit_ats2_compl.add(x.GetIdx())
+    
+    hit_ats2 = tuple(hit_ats2_compl)
+
+            
+
+    
+
+
+    mol1coreindex = [hit_ats1]
+    mol2coreindex = [hit_ats2]
+    if return_ccoremol == True:
+        return mol1coreindex, mol2coreindex, hit_ats1, hit_ats2, ccoremol
+    else:
+        return mol1coreindex, mol2coreindex, hit_ats1, hit_ats2
+
+
+def _find_connected_dummy_regions_mol(mol, ccore, G: nx.Graph , remove_Hs: bool = False):
     """
     find connected dummy regions
     ---
@@ -312,7 +401,7 @@ def _find_connected_dummy_regions_mol(mol, ccore, G: nx.Graph , remove_Hs: bool 
     return unique_subgraphs, G_dummy
 
 
-def _find_terminal_atom(cc_idx: int, mol, remove_Hs: bool = True):
+def _find_terminal_atom(cc_idx: int, mol, remove_Hs: bool = False):
     """
     Find atoms that connect the molecule to the common core.
     Args:
@@ -350,7 +439,7 @@ def _find_terminal_atom(cc_idx: int, mol, remove_Hs: bool = True):
 
 
 def _match_terminal_real_and_dummy_atoms(
-    mol, real_atoms_cc: list, dummy_atoms_cc: list, remove_Hs: bool = True
+    mol, real_atoms_cc: list, dummy_atoms_cc: list, remove_Hs: bool = False
 ):
     """
     Matches the terminal real and dummy atoms and returns a dict with real atom idx as key and a set of dummy atoms that connect

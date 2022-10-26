@@ -14,11 +14,16 @@ _calculate_order_of_LJ_mutations_new_iter_change: works iteratively, i.e. after 
 
 
 def _calculate_order_of_LJ_mutations(
-    connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph
+    connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, exclude_Hs=True
 ) -> list:
     """
     dfs mutation algorithm (as currently in transformato)
+    -----
+    exclude_Hs: if True, hydrogens are removed before the mutation algorithm is applied - necessary for usual Transformato workflow
     """
+
+    if exclude_Hs == True:
+        connected_dummy_regions, G = exclude_Hs_from_mutations(connected_dummy_regions, G)
 
     ordered_LJ_mutations = []
     for real_atom in match_terminal_atoms:
@@ -55,10 +60,19 @@ def _calculate_order_of_LJ_mutations_new(
     G: nx.Graph,
     cyclecheck=True,
     ordercycles=True,
+    exclude_Hs = True
 ) -> list:
     """
     bfs/djikstra-algorithm applied once for route (without iterations)
+    -----
+    cyclecheck: updates weights according to cycle participation (should always be set to True)
+    ordercheck: if there is no possibility to decide between two nodes - i.e. the weight would be the exactly the same - weight updating according to preferential removal decides that the node in which neighbourhood nodes already have been removed is removed next
+    exclude_Hs: if True, hydrogens are removed before the mutation algorithm is applied - necessary for usual Transformato workflow
     """
+
+    if exclude_Hs == True:
+        connected_dummy_regions, G = exclude_Hs_from_mutations(connected_dummy_regions, G)
+
 
     ordered_LJ_mutations = []
 
@@ -122,7 +136,7 @@ def _calculate_order_of_LJ_mutations_new(
 
 
 def _calculate_order_of_LJ_mutations_new_iter(
-    connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercheck=True, cyclecheck_v2=True
+    connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercheck=True, cyclecheck_v2=True, exclude_Hs=True
 ) -> list:
     """
     bfs/djikstra-algorithm applied iteratively, i.e. after each removal of an atom 
@@ -130,8 +144,12 @@ def _calculate_order_of_LJ_mutations_new_iter(
     cyclecheck: updates weights according to cycle participation (should always be set to True)
     ordercheck: if there is no possibility to decide between two nodes - i.e. the weight would be the exactly the same - weight updating according to preferential removal decides that the node in which neighbourhood nodes already have been removed is removed next
     cyclecheck_v2: if set to true (together with cyclecheck), a different version of cyclecheck is performed which gives more symmetric/systematic routes for some molecules with double rings
+    exclude_Hs: if True, hydrogens are removed before the mutation algorithm is applied - necessary for usual Transformato workflow
     """
     
+    if exclude_Hs == True:
+        connected_dummy_regions, G = exclude_Hs_from_mutations(connected_dummy_regions, G)
+
     ordered_LJ_mutations = []
     
     for real_atom in match_terminal_atoms:
@@ -212,14 +230,19 @@ def _calculate_order_of_LJ_mutations_new_iter(
 
  
 def _calculate_order_of_LJ_mutations_new_iter_change(
-    connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercheck=True, cyclecheck_v2=True
+    connected_dummy_regions: list, match_terminal_atoms: dict, G: nx.Graph, cyclecheck=True, ordercheck=True, cyclecheck_v2=True, exclude_Hs=True
 ) -> list:
     """
     works iteratively, i.e. after each removal of an atom, algorithm is chosen depending on current state
     ----
     cyclecheck: updates weights according to cycle participation (should always be set to True)
     ordercheck: if there is no possibility to decide between two nodes - i.e. the weight would be the exactly the same - weight updating according to preferential removal decides that the node in which neighbourhood nodes already have been removed is removed next
+    cyclecheck_v2: improved function for updating weights according to cycle participation (should usually be set to True)
+    exclude_Hs: if True, hydrogens are removed before the mutation algorithm is applied - necessary for usual Transformato workflow
     """
+
+    if exclude_Hs == True:
+        connected_dummy_regions, G = exclude_Hs_from_mutations(connected_dummy_regions, G)
 
     ordered_LJ_mutations = []
 
@@ -701,3 +724,25 @@ def change_route_cycles(route, cycledict, degreedict, weightdict, G):
                         route[idx1], route[idx2] = route[idx2], route[idx1]
 
     return route
+
+def exclude_Hs_from_mutations(connected_dummy_regions: list, G: nx.Graph):
+    """
+    hydrogens are removed from the networkx-graph-representation and the list of connected dummy regions
+    ----
+    Args:
+        connected_dummy_regions: list of connected dummy regions
+        G: nx-graph of molecule
+    ----
+    returns list of connected dummy regions and networkx-graph without hydrogens
+    """
+
+    G_hydrogens = [x for x,y in G.nodes(data=True) if y['atom_type']=="H"]
+
+    G.remove_nodes_from(G_hydrogens)
+    connected_dummy_regions_copy = connected_dummy_regions
+    for hydroindex in G_hydrogens:
+        for indexregion, region in enumerate(connected_dummy_regions):
+            if hydroindex in region:
+                connected_dummy_regions_copy[indexregion].remove(hydroindex)
+
+    return connected_dummy_regions_copy, G

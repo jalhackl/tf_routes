@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _show_common_core_gradient(
-    mol, highlight, mutationl, percomponent=False, numbers=False, remove_Hs: bool = True
+    mol, highlight, mutationl, percomponent=False, numbers=False, remove_Hs: bool = False
 ):
 
     """
@@ -23,16 +23,17 @@ def _show_common_core_gradient(
     highlight: list indicating the ccore, fct highlights the common core in black
     mutationl: list indicating the mutation order, fct draws color gradient
 
-    percompoentn: boolean; one color gradient for each component (False) or one for all dummy atoms
+    percomponent: boolean; one color gradient for each component (False) or one for all dummy atoms
     - currently, the components are processed successively, so perhaps True is better suited to illustrate the mutation order
 
     numbers: boolean; show also numbers showing the mutation order
+    remove_Hs: boolean; if True, hydrogens are removed before drawing
     """
 
     # https://rdkit.blogspot.com/2015/02/new-drawing-code.html
 
     
-    #removal of all Hs - however in the usual workflow, they should already be removed
+    #removal of all Hs 
     if remove_Hs == True:
         mol = Chem.rdmolops.RemoveAllHs(mol)
 
@@ -132,7 +133,7 @@ def _show_common_core_gradient(
     return svg
 
 
-def _show_common_core_gradient_write(mol, highlight, mutationl, percomponent=False, remove_Hs: bool = True):
+def _show_common_core_gradient_write(mol, highlight, mutationl, percomponent=False, remove_Hs: bool = False):
 
     """
     almost identical to _show_common_core_gradient_write, used for creating visualizations to write in files
@@ -146,7 +147,7 @@ def _show_common_core_gradient_write(mol, highlight, mutationl, percomponent=Fal
     - currently, the components are processed successively, so perhaps True is better suited to illustrate the mutation order
 
     numbers: boolean; show also numbers showing the mutation order
-    legendtext: string; legend to be placed below molecule
+    remove_Hs: boolean; if True, hydrogens are removed before drawing
     """
 
     #removal of all Hs - however in the usual workflow, they should already be removed
@@ -246,9 +247,10 @@ def animated_visualization_3d_v1(mol, mutationl, ccoremol, hits, remove_Hs: bool
 
     import py3Dmol
 
-    #removal of all Hs - however in the usual workflow, they should already be removed
+    #removal of all Hs 
     if remove_Hs == True:
         mol = Chem.rdmolops.RemoveAllHs(mol)
+        ccoremol = Chem.rdmolops.RemoveAllHs(ccoremol)
 
     ccoremol
     ccoretemplate = ccoremol
@@ -301,6 +303,83 @@ def animated_visualization_3d_v1(mol, mutationl, ccoremol, hits, remove_Hs: bool
         time.sleep(1)
 
 
+def animated_visualization_3d_v1_wo_ccoremol(mol, mutationl, hits, remove_Hs: bool = True):
+    """
+    animated visualization using py3Dmol
+
+    this version ('..._wo_ccoremol') generates the mol-object for the common core (ccoremol) directly from the indices of the substructure (hits) and thus could be used in the Transformato workflow
+    """
+
+    import time
+
+    import py3Dmol
+
+    ccore = Chem.rdmolfiles.MolFragmentToCXSmiles(
+    mol,
+    hits,
+    kekuleSmiles=True,
+    isomericSmiles=False,
+)
+    ccoremol = Chem.MolFromSmiles(ccore)
+
+    #removal of all Hs 
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
+        ccoremol = Chem.rdmolops.RemoveAllHs(ccoremol)
+
+
+    ccoremol
+    ccoretemplate = ccoremol
+    AllChem.EmbedMolecule(ccoretemplate)
+
+    m_match = hits
+
+    molsreduced = []
+    flatorder = [item for items in mutationl for item in items]
+
+    for i in range(len(flatorder)):
+
+        mol1newembed = AllChem.ConstrainedEmbed(mol, ccoretemplate)
+
+        mol1ed = Chem.EditableMol(mol1newembed)
+        currentorderlist = flatorder[0 : i + 1]
+        currentorderlist.sort(reverse=True)
+
+        for j in currentorderlist:
+            mol1ed.RemoveAtom(j)
+        molback = mol1ed.GetMol()
+
+        molsreduced.append(molback)
+
+    ccoreblock = Chem.MolToMolBlock(ccoretemplate, kekulize=False)
+
+    molblocksreduced = []
+    for i in molsreduced:
+        mblock = Chem.MolToMolBlock(i, kekulize=False)
+
+        molblocksreduced.append(mblock)
+
+    view = py3Dmol.view()
+
+    counter = 0
+    for i in molblocksreduced:
+
+        view.removeAllModels()
+
+        view.addModel(i, "mol")
+        view.setStyle({"model": 0}, {"stick": {}})
+
+        view.setBackgroundColor("0xeeeeee")
+
+        if counter == 0:
+            view.zoomTo()
+            counter = counter + 1
+
+        view.update()
+        time.sleep(1)
+
+
+
 def animated_visualization_3d_v2(mol, mutationl, ccoremol, hits, remove_Hs: bool = True):
     """
     animated visualization using py3Dmol
@@ -312,11 +391,117 @@ def animated_visualization_3d_v2(mol, mutationl, ccoremol, hits, remove_Hs: bool
     import py3Dmol
     from rdkit.Chem import TemplateAlign
 
-    #removal of all Hs - however in the usual workflow, they should already be removed
+    #removal of all Hs 
     if remove_Hs == True:
         mol = Chem.rdmolops.RemoveAllHs(mol)
+        ccoremol = Chem.rdmolops.RemoveAllHs(ccoremol)
 
     m_match = hits
+
+    ccoremol
+    ccoretemplate = ccoremol
+    AllChem.EmbedMolecule(ccoretemplate)
+
+    mol1newembed = AllChem.ConstrainedEmbed(mol, ccoretemplate)
+
+    molsreduced = []
+
+    flatorder = [item for items in mutationl for item in items]
+
+    newhits = mol.GetSubstructMatch(ccoremol)
+    mol.GetNumConformers()
+    counter = 0
+    for i in range(mol.GetNumAtoms()):
+
+        for j in newhits:
+
+            if j == i:
+
+                newpos = ccoremol.GetConformer().GetAtomPosition(counter)
+                mol.GetConformer().SetAtomPosition(i, newpos)
+
+                counter = counter + 1
+
+    for i in range(len(flatorder)):
+
+        mol1newembed = mol
+
+        mol1newembed = AllChem.ConstrainedEmbed(mol1newembed, ccoretemplate)
+
+        mol1newembed.GetNumConformers()
+
+        mol1ed = Chem.EditableMol(mol1newembed)
+        currentorderlist = flatorder[0 : i + 1]
+        currentorderlist.sort(reverse=True)
+        for j in currentorderlist:
+            mol1ed.RemoveAtom(j)
+        molback = mol1ed.GetMol()
+
+        molsreduced.append(molback)
+
+    ccoreblock = Chem.MolToMolBlock(ccoretemplate, kekulize=False)
+
+    molblocksreduced = []
+    for i in molsreduced:
+        mblock = Chem.MolToMolBlock(i, kekulize=False)
+
+        molblocksreduced.append(mblock)
+
+    view = py3Dmol.view()
+
+    counter = 0
+    for i in molblocksreduced:
+
+        view.removeAllModels()
+
+        view.addModel(i, "mol")
+        view.setStyle({"model": 0}, {"stick": {}})
+
+        view.addModel(ccoreblock, "mol")
+        # view.setStyle({'model':1},{'sphere':{'color':'black', 'radius':1.8}})
+        view.setStyle({"model": 1}, {"sphere": {"radius": 0.8}})
+        view.setBackgroundColor("0xeeeeee")
+
+        if counter == 0:
+            view.zoomTo()
+            counter = counter + 1
+
+        view.update()
+
+        time.sleep(1)
+
+
+
+
+def animated_visualization_3d_v2_wo_ccoremol(mol, mutationl, hits, remove_Hs: bool = True):
+    """
+    animated visualization using py3Dmol
+    common core molecules are visualized as spheres
+
+    this version ('..._wo_ccoremol') generates the mol-object for the common core (ccoremol) directly from the indices of the substructure (hits) and thus could be used in the Transformato workflow
+    """
+
+    import time
+
+    import py3Dmol
+    from rdkit.Chem import TemplateAlign
+
+
+    m_match = hits
+
+    ccore = Chem.rdmolfiles.MolFragmentToCXSmiles(
+    mol,
+    hits,
+    kekuleSmiles=True,
+    isomericSmiles=False,
+)
+    ccoremol = Chem.MolFromSmiles(ccore)
+
+    #removal of all Hs 
+    if remove_Hs == True:
+        mol = Chem.rdmolops.RemoveAllHs(mol)
+        ccoremol = Chem.rdmolops.RemoveAllHs(ccoremol)
+    
 
     ccoremol
     ccoretemplate = ccoremol
